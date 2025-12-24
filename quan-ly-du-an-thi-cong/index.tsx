@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './index.css'; // Thêm dòng này để Vite tự động đóng gói CSS
 import App from './App';
 
 const rootElement = document.getElementById('root');

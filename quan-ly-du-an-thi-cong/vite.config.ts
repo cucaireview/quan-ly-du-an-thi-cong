@@ -10,14 +10,15 @@ export default defineConfig(({ mode }) => {
         host: '0.0.0.0',
       },
       plugins: [react()],
-      define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
-      },
+      // Xóa bỏ phần define cũ để dùng import.meta.env cho ổn định
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
+      },
+      build: {
+        outDir: 'dist', // Đảm bảo thư mục đầu ra là dist
+        emptyOutDir: true,
       }
     };
 });
