@@ -1,0 +1,50 @@
+/* Thiết lập các lớp Tailwind cơ bản */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Thiết lập Font chữ mặc định (đã khai báo Inter trong HTML) */
+:root {
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  @apply bg-slate-50 text-slate-900; /* Dùng màu nền từ cấu hình HTML của bạn */
+}
+
+/* Custom Scrollbar (Đưa từ HTML vào CSS để tối ưu) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Animation cho các lớp hiển thị */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Các lớp bổ sung cho quản lý dự án */
+.card-shadow {
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
