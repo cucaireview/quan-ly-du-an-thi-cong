@@ -1,0 +1,7 @@
+{
+  "name": "Quan ly du an thi cong",
+  "description": "Ứng dụng quản lý dự án thi công xây dựng chuyên nghiệp với khả năng theo dõi tiến độ, nhân sự, vật tư và tích hợp AI phân tích rủi ro.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
