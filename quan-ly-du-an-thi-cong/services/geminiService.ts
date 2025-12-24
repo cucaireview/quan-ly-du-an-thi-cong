@@ -2,12 +2,12 @@
 import { GoogleGenAI } from "@google/genai";
 import { Project, PCCCMaterial, AcceptanceTask } from "../types";
 
-// Always use process.env.API_KEY directly in the constructor.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Always use import.meta.env.VITE_GEMINI_API_KEY directly in the constructor.
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
 export const analyzeProjectRisks = async (project: Project): Promise<string> => {
   // Check for API key availability.
-  if (!process.env.API_KEY) {
+  if (!import.meta.env.VITE_GEMINI_API_KEY) {
     return "Vui lòng cấu hình API_KEY để sử dụng tính năng phân tích AI.";
   }
 
@@ -50,7 +50,7 @@ export const analyzeProjectRisks = async (project: Project): Promise<string> => 
 };
 
 export const suggestTasks = async (projectDescription: string): Promise<string> => {
-    if (!process.env.API_KEY) return "Cần API Key để gợi ý công việc.";
+    if (!import.meta.env.VITE_GEMINI_API_KEY) return "Cần API Key để gợi ý công việc.";
     
     try {
         const prompt = `
@@ -71,7 +71,7 @@ export const suggestTasks = async (projectDescription: string): Promise<string> 
 }
 
 export const chatWithAI = async (message: string, context?: string): Promise<string> => {
-  if (!process.env.API_KEY) return "Vui lòng cấu hình API_KEY để chat với AI.";
+  if (!import.meta.env.VITE_GEMINI_API_KEY) return "Vui lòng cấu hình API_KEY để chat với AI.";
 
   try {
     let fullPrompt = "";
@@ -103,7 +103,7 @@ export const chatWithAI = async (message: string, context?: string): Promise<str
 };
 
 export const searchLocation = async (query: string): Promise<{ text: string, mapLink?: string }> => {
-  if (!process.env.API_KEY) return { text: "Chưa cấu hình API Key. Không thể tìm địa điểm." };
+  if (!import.meta.env.VITE_GEMINI_API_KEY) return { text: "Chưa cấu hình API Key. Không thể tìm địa điểm." };
   
   try {
      const response = await ai.models.generateContent({
@@ -144,7 +144,7 @@ export const searchLocation = async (query: string): Promise<{ text: string, map
 };
 
 export const analyzePCCCStock = async (materials: PCCCMaterial[]): Promise<string> => {
-  if (!process.env.API_KEY) return "Cần API Key để phân tích.";
+  if (!import.meta.env.VITE_GEMINI_API_KEY) return "Cần API Key để phân tích.";
 
   try {
       const prompt = `
@@ -181,7 +181,7 @@ export const analyzePCCCStock = async (materials: PCCCMaterial[]): Promise<strin
 }
 
 export const analyzeQAQC = async (tasks: AcceptanceTask[]): Promise<string> => {
-  if (!process.env.API_KEY) return "Cần API Key để phân tích QA/QC.";
+  if (!import.meta.env.VITE_GEMINI_API_KEY) return "Cần API Key để phân tích QA/QC.";
 
   try {
       // Prepare checklist data
