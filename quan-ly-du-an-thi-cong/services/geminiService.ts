@@ -1,51 +1,44 @@
-
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Project, PCCCMaterial, AcceptanceTask } from "../types";
 
-// Always use import.meta.env.VITE_GEMINI_API_KEY directly in the constructor.
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+// Khởi tạo SDK với biến môi trường chuẩn Vite
+// Biến này phải được thêm vào Vercel Settings > Environment Variables
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
 
 export const analyzeProjectRisks = async (project: Project): Promise<string> => {
-  // Check for API key availability.
   if (!import.meta.env.VITE_GEMINI_API_KEY) {
-    return "Vui lòng cấu hình API_KEY để sử dụng tính năng phân tích AI.";
+    return "Lỗi: Vui lòng cấu hình VITE_GEMINI_API_KEY trên Vercel để sử dụng tính năng này.";
   }
 
   try {
-    // Summarize financials for the prompt
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
     const paidStages = project.financials.filter(f => f.status === 'Paid').length;
     const overdueStages = project.financials.filter(f => f.status === 'Overdue').length;
-    
-    // Summarize documents
     const missingDocs = project.documents.filter(d => d.status === 'Draft').map(d => d.name).join(', ');
 
     const prompt = `
-      Bạn là một chuyên gia quản lý dự án xây dựng. Hãy phân tích dữ liệu dự án sau đây và đưa ra báo cáo ngắn gọn bằng Tiếng Việt (dưới 300 từ).
+      Bạn là một chuyên gia quản lý dự án xây dựng. Hãy phân tích dữ liệu dự án sau và báo cáo ngắn gọn bằng Tiếng Việt (< 300 từ).
       
-      Thông tin dự án:
-      - Tên: ${project.name}
-      - Trạng thái: ${project.status}
-      - Tiến độ: ${project.progress}%
-      - Tài chính: Đã thanh toán ${paidStages} đợt. Số đợt quá hạn: ${overdueStages}. Tổng ngân sách: ${project.budget.toLocaleString()}.
-      - Hồ sơ: Có ${project.documents.length} hồ sơ. Các hồ sơ đang ở trạng thái nháp (chưa hoàn thành): ${missingDocs || 'Không có'}.
-      - Số lượng công việc: ${project.tasks.length}
-      - Tình trạng vật tư: ${JSON.stringify(project.materials.map(m => ({name: m.name, status: m.status})))}
+      Thông tin:
+      - Tên dự án: ${project.name}
+      - Trạng thái: ${project.status} | Tiến độ: ${project.progress}%
+      - Tài chính: Đã thanh toán ${paidStages} đợt. Quá hạn: ${overdueStages}. Ngân sách: ${project.budget.toLocaleString()} VNĐ.
+      - Hồ sơ thiếu: ${missingDocs || 'Không có'}.
+      - Vật tư: ${JSON.stringify(project.materials.map(m => ({name: m.name, status: m.status})))}
 
       Yêu cầu:
-      1. Đánh giá tình hình chung (bao gồm cả dòng tiền và pháp lý hồ sơ).
-      2. Chỉ ra các rủi ro tiềm ẩn (về tài chính, tiến độ, hồ sơ hoặc vật tư).
-      3. Đề xuất 2-3 hành động cụ thể cho người quản lý.
+      1. Đánh giá chung dòng tiền & pháp lý.
+      2. Chỉ ra rủi ro tiềm ẩn.
+      3. Đề xuất 2-3 hành động cụ thể.
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-    });
-
-    return response.text || "Không thể tạo phân tích vào lúc này.";
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text() || "Không thể tạo phân tích.";
   } catch (error) {
-    console.error("Gemini API Error:", error);
-    return "Đã xảy ra lỗi khi kết nối với AI Assistant. Vui lòng thử lại sau.";
+    console.error("Gemini Error:", error);
+    return "Lỗi kết nối AI Assistant. Vui lòng kiểm tra lại cấu hình API Key.";
   }
 };
 
@@ -53,170 +46,57 @@ export const suggestTasks = async (projectDescription: string): Promise<string> 
     if (!import.meta.env.VITE_GEMINI_API_KEY) return "Cần API Key để gợi ý công việc.";
     
     try {
-        const prompt = `
-          Dựa trên mô tả dự án xây dựng sau: "${projectDescription}".
-          Hãy liệt kê 5 hạng mục công việc quan trọng nhất cần thực hiện theo trình tự thời gian.
-          Trả về kết quả dưới dạng danh sách gạch đầu dòng ngắn gọn.
-        `;
-
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
-        });
-        
-        return response.text || "Không có gợi ý.";
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const prompt = `Dựa trên mô tả: "${projectDescription}", hãy liệt kê 5 hạng mục công việc quan trọng nhất theo trình tự thời gian (gạch đầu dòng).`;
+        const result = await model.generateContent(prompt);
+        return result.response.text();
     } catch (error) {
-        return "Lỗi khi lấy gợi ý.";
+        return "Lỗi khi lấy gợi ý từ AI.";
     }
 }
 
 export const chatWithAI = async (message: string, context?: string): Promise<string> => {
-  if (!import.meta.env.VITE_GEMINI_API_KEY) return "Vui lòng cấu hình API_KEY để chat với AI.";
+  if (!import.meta.env.VITE_GEMINI_API_KEY) return "Vui lòng cấu hình API_KEY.";
 
   try {
-    let fullPrompt = "";
-    if (context) {
-      fullPrompt += `
-      [Thông tin bối cảnh dự án hiện tại mà người dùng đang xem:
-      ${context}]
-      `;
-    }
-
-    fullPrompt += `
-      Bạn là trợ lý ảo AI chuyên về xây dựng và quản lý dự án. 
-      Hãy trả lời câu hỏi của người dùng một cách ngắn gọn, chuyên nghiệp và hữu ích.
-      Nếu có thông tin bối cảnh ở trên, hãy sử dụng nó để trả lời cụ thể hơn.
-      
-      Người dùng: "${message}"
-    `;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: fullPrompt,
-    });
-
-    return response.text || "Xin lỗi, tôi không hiểu câu hỏi.";
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const fullPrompt = `${context ? 'Bối cảnh: ' + context : ''}\nNgười dùng hỏi: ${message}\nTrả lời ngắn gọn, chuyên nghiệp:`;
+    
+    const result = await model.generateContent(fullPrompt);
+    return result.response.text();
   } catch (error) {
-    console.error("Chat Error:", error);
-    return "Đang gặp sự cố kết nối. Vui lòng thử lại.";
-  }
-};
-
-export const searchLocation = async (query: string): Promise<{ text: string, mapLink?: string }> => {
-  if (!import.meta.env.VITE_GEMINI_API_KEY) return { text: "Chưa cấu hình API Key. Không thể tìm địa điểm." };
-  
-  try {
-     const response = await ai.models.generateContent({
-        // Maps grounding requires 2.5 series model.
-        model: 'gemini-2.5-flash',
-        contents: `Find the exact address and location for: "${query}".`,
-        config: { 
-            tools: [{ googleMaps: {} }] 
-        }
-     });
-     
-     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-     let link = undefined;
-     
-     if (chunks) {
-        for (const c of chunks) {
-            // Check for maps grounding chunk
-            if ((c as any).maps?.uri) {
-                link = (c as any).maps.uri;
-                break;
-            }
-        }
-     }
-     
-     // Fallback link creation
-     if (!link) {
-         link = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-     }
-
-     return { 
-         text: response.text || query, 
-         mapLink: link 
-     };
-  } catch (e) {
-     console.error("Map Search Error", e);
-     return { text: "Không tìm thấy địa điểm này.", mapLink: undefined };
+    return "Sự cố kết nối AI. Thử lại sau.";
   }
 };
 
 export const analyzePCCCStock = async (materials: PCCCMaterial[]): Promise<string> => {
-  if (!import.meta.env.VITE_GEMINI_API_KEY) return "Cần API Key để phân tích.";
+  if (!import.meta.env.VITE_GEMINI_API_KEY) return "Thiếu cấu hình API.";
 
   try {
-      const prompt = `
-        Bạn là chuyên gia quản lý kho vật tư thiết bị PCCC (Phòng Cháy Chữa Cháy). Hãy phân tích dữ liệu tồn kho sau và đưa ra cảnh báo.
-        
-        Dữ liệu kho:
-        ${JSON.stringify(materials.map(m => ({
-            name: m.name,
-            available: m.availableQuantity,
-            minStock: m.minStockLevel,
-            expiry: m.inspectionExpiry,
-            allocatedTo: m.allocatedTo.map(a => `${a.quantity} cho ${a.projectName} (${a.status})`).join(', ')
-        })))}
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const prompt = `Phân tích kho PCCC: ${JSON.stringify(materials.map(m => ({
+          name: m.name, available: m.availableQuantity, min: m.minStockLevel, expiry: m.inspectionExpiry
+      })))}. Đưa ra cảnh báo về thiếu hụt và hạn kiểm định.`;
 
-        Yêu cầu phân tích:
-        1. **Dự báo thiếu hụt**: Dựa trên tồn kho khả dụng (available) so với định mức tối thiểu (minStock). Cảnh báo các vật tư sắp hết.
-        2. **Cảnh báo thiết bị**: Kiểm tra hạn kiểm định (expiry) so với hiện tại (${new Date().toISOString().split('T')[0]}). Cảnh báo nếu quá hạn.
-        3. **Phân tích phân bổ**: Nhận xét về việc vật tư đã xuất (Allocated/Issued) nhưng chưa lắp đặt (chưa Installed) có nguy cơ thất thoát không?
-        4. **Gợi ý**: Đề xuất danh sách cần đặt hàng ngay.
-
-        Trả lời ngắn gọn, sử dụng các gạch đầu dòng và icon cảnh báo.
-      `;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-      });
-
-      return response.text || "Không có dữ liệu phân tích.";
+      const result = await model.generateContent(prompt);
+      return result.response.text();
   } catch (error) {
-      console.error("AI Analysis Error", error);
-      return "Lỗi khi phân tích dữ liệu kho PCCC.";
+      return "Lỗi phân tích kho.";
   }
 }
 
 export const analyzeQAQC = async (tasks: AcceptanceTask[]): Promise<string> => {
-  if (!import.meta.env.VITE_GEMINI_API_KEY) return "Cần API Key để phân tích QA/QC.";
+  if (!import.meta.env.VITE_GEMINI_API_KEY) return "Cần API Key cho QA/QC.";
 
   try {
-      // Prepare checklist data
-      const checklistData = tasks.map(t => ({
-          title: t.title,
-          standard: t.standardRef,
-          status: t.status,
-          docCount: t.documents.length,
-          documents: t.documents.map(d => d.name).join(', '),
-          notes: t.notes
-      }));
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const prompt = `Rà soát hồ sơ nghiệm thu PCCC: ${JSON.stringify(tasks.map(t => ({
+          title: t.title, status: t.status, docCount: t.documents.length
+      })))}. Cảnh báo thiếu hồ sơ và đánh giá độ sẵn sàng.`;
 
-      const prompt = `
-        Bạn là chuyên gia QA/QC và Thẩm duyệt PCCC. Hãy đóng vai trò người rà soát hồ sơ trước khi đoàn Cảnh sát PCCC xuống kiểm tra.
-        
-        Danh sách hạng mục nghiệm thu hiện tại:
-        ${JSON.stringify(checklistData)}
-
-        Yêu cầu phân tích:
-        1. **Phát hiện thiếu hồ sơ**: Tìm các hạng mục có trạng thái 'Approved' hoặc 'In Progress' nhưng thiếu tài liệu minh chứng (docCount = 0 hoặc thiếu các biên bản quan trọng như Biên bản thử kín, Biên bản đo điện trở...).
-        2. **Đối chiếu tiêu chuẩn**: Dựa trên các tiêu chuẩn (TCVN 7336, 5738...), nhắc nhở các yêu cầu kỹ thuật quan trọng thường bị bỏ sót cho từng hạng mục.
-        3. **Cảnh báo "Hỏi thăm"**: Chỉ ra các hạng mục nhạy cảm mà Cảnh sát PCCC thường kiểm tra gắt gao nhất (ví dụ: đường đặc tuyến máy bơm, thời gian kích hoạt màn ngăn cháy...).
-        4. **Tổng kết**: Đánh giá mức độ sẵn sàng của hồ sơ (Thấp/Trung bình/Cao).
-
-        Trả lời ngắn gọn, đánh dấu các mục quan trọng bằng icon cảnh báo.
-      `;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-      });
-
-      return response.text || "Không có dữ liệu phân tích QA/QC.";
+      const result = await model.generateContent(prompt);
+      return result.response.text();
   } catch (error) {
-      console.error("AI QA/QC Analysis Error", error);
-      return "Lỗi khi phân tích dữ liệu QA/QC.";
+      return "Lỗi phân tích QA/QC.";
   }
 }
